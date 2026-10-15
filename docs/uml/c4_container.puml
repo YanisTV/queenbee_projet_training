@@ -1,0 +1,34 @@
+@startuml c4_container
+!include <C4/C4_Container>
+title Queen Bee — Conteneurs et frontières de confiance (C4 niveau 2)
+
+Person(analyst, "Analyste SOC", "Traite les incidents")
+System_Ext(agent, "Agent (abeille)", "Collecte les logs sur les hôtes")
+System_Ext(firewall, "Pare-feu", "Bloque les IP hostiles")
+
+Boundary(tb1, "TB1 — Réseau agents -> ingestion (non fiable)") {
+  Container(api, "API d'ingestion", "Python", "Taille <= 4 Kio, HMAC, schéma strict, parseur de logs")
+}
+
+Boundary(app, "Queen Bee (processus de confiance)") {
+  Container(uc, "Cas d'usage", "Python", "DetectionService, IncidentService, contrôle d'accès")
+  Container(domain, "Domaine", "Python", "SecurityEvent, règles, Incident (aucune dépendance)")
+}
+
+Boundary(tb2, "TB2 — Application -> base") {
+  ContainerDb(db, "Base d'incidents", "SQLite", "Requêtes paramétrées uniquement")
+}
+
+Boundary(tb3, "TB3 — Application -> pare-feu") {
+  Container(resp, "Réponse active", "Python", "Commandes validées, annulables (undo)")
+}
+
+Rel(agent, api, "Envoie des événements signés", "HTTPS + HMAC-SHA256")
+Rel(api, uc, "Transmet des SecurityEvent validés", "appel Python")
+Rel(uc, domain, "Évalue les règles", "appel Python")
+Rel(uc, db, "Enregistre les incidents", "SQL paramétré")
+Rel(uc, resp, "Ordonne un blocage", "commande")
+Rel(resp, firewall, "Bloque l'IP", "API pare-feu")
+Rel(uc, analyst, "Alerte (limitée en débit, auditée)", "notification")
+Rel(analyst, uc, "Consulte et clôt (rôle vérifié)", "TB4 : interface analyste")
+@enduml
