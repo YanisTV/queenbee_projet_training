@@ -1,0 +1,87 @@
+@startuml class_patterns
+hide empty members
+skinparam classAttributeIconSize 0
+
+title Queen Bee — diagramme de classes des 5 patterns défensifs
+
+package "domain" {
+  class SecurityEvent <<Value Object>>
+  class Alert <<Value Object>>
+  class Incident <<Entity / State>>
+  interface Rule <<Strategy>> {
+    +evaluate(events): list<Alert>
+  }
+  class BruteForceRule
+  class PortScanRule
+  class RuleSet <<Composite>>
+  Rule <|.. BruteForceRule
+  Rule <|.. PortScanRule
+  Rule <|.. RuleSet
+  RuleSet o-- "*" Rule
+  Incident --> Alert
+}
+
+package "application" {
+  interface IncidentRepository <<Port>> {
+    +save(incident)
+    +get(id)
+    +list_open()
+  }
+  interface Notifier <<Port>> { +notify(alert) }
+  class DetectionService <<Observer publisher>>
+  class IncidentService
+  class IncidentReadProxy <<Proxy>>
+  DetectionService --> Rule : évalue
+  DetectionService --> IncidentRepository : persiste
+  DetectionService --> "0..*" Notifier : diffuse
+  IncidentService --> IncidentRepository
+  IncidentReadProxy ..|> IncidentRepository
+}
+
+package "adapters.inbound" {
+  class AgentAPI <<Adapter>>
+  class LogParser <<Adapter>>
+  class ThreatFeedTranslator <<Adapter / Anti-corruption layer>>
+}
+
+package "adapters.outbound" {
+  class InMemoryIncidentRepository <<Adapter>>
+  class SqliteIncidentRepository <<Adapter>>
+  class MemoryNotifier <<Observer subscriber>>
+  class LogNotifier <<Observer subscriber>>
+  class AuditedNotifier <<Decorator>>
+  class RateLimitedNotifier <<Decorator>>
+  interface Command <<Command>> {
+    +execute()
+    +undo()
+  }
+  class BlockIpCommand
+  class CommandHistory
+  class InMemoryFirewall <<Adapter>>
+
+  InMemoryIncidentRepository ..|> IncidentRepository
+  SqliteIncidentRepository ..|> IncidentRepository
+  MemoryNotifier ..|> Notifier
+  LogNotifier ..|> Notifier
+  AuditedNotifier ..|> Notifier
+  RateLimitedNotifier ..|> Notifier
+  AuditedNotifier o--> Notifier : enveloppe
+  RateLimitedNotifier o--> Notifier : enveloppe
+  BlockIpCommand ..|> Command
+  BlockIpCommand --> InMemoryFirewall
+  CommandHistory o--> "0..*" Command
+}
+
+AgentAPI --> DetectionService : message validé
+LogParser --> DetectionService : événements validés
+ThreatFeedTranslator --> SecurityEvent : traduction contrôlée
+note right of IncidentReadProxy
+Même contrat que le dépôt.
+Autorise avant délégation.
+end note
+note bottom of DetectionService
+Chaque abonné est isolé : une panne
+est comptée et journalisée ; les autres
+reçoivent encore l'alerte.
+end note
+@enduml

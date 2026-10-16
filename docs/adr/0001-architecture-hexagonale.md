@@ -1,7 +1,7 @@
 # ADR 0001 — Architecture hexagonale (ports et adaptateurs)
 
 - **Statut** : accepté — 15 octobre 2026
-- **Décideurs** : <noms du groupe>
+- **Décideurs** : équipe projet Queen Bee (décision collective ; les noms individuels n’étaient pas fournis dans les éléments remis).
 
 ## Contexte
 Queen Bee reçoit des données **non fiables** de trois sources : les lignes de journaux des hôtes, les messages des agents et, plus tard, un flux de renseignement sur les menaces. Le code de départ (`legacy/log_watcher.py`) mélange lecture, analyse, détection, stockage et alerte dans une seule classe : une entrée piégée atteint directement la base (injection SQL) et un changement de base ou de mail oblige à tout réécrire. Il faut pouvoir tester la détection sans base, sans réseau et sans secret.
@@ -26,6 +26,11 @@ Le **domaine** (entités, règles) ne dépend de rien. La couche **application**
 - **E** · Contrôle d'accès : un point unique, le cas d'usage, où vérifier le rôle (EX-05).
 - **I** · Confidentialité : les secrets ne vivent que dans la configuration et le point d'assemblage, jamais dans le domaine (EX-07).
 - **D** · Disponibilité : tailles bornées et regex sans quantificateurs imbriqués aux frontières (EX-02).
+
+## Diagrammes associés
+- Contexte C4 niveau 1 : `docs/uml/c4_context.puml`.
+- Classes et cinq patterns défensifs : `docs/uml/class_patterns.puml`.
+- Parcours, frontières de confiance et tranche verticale : `docs/journey_and_vertical_slice.md`.
 
 ## Preuve
 - Contrat d'architecture : `PYTHONPATH=src lint-imports` (« Architecture hexagonale : les dépendances pointent vers le domaine » — KEPT).
