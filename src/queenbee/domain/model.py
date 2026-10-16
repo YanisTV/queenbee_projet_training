@@ -91,7 +91,8 @@ class Alert:
             raise DomainError("nom de règle invalide")
         _check_ip(self.source_ip)
         try:
-            Severity(self.severity)
+            # Conversion : Alert(..., 3, ...) devient Alert(..., Severity.HIGH, ...).
+            object.__setattr__(self, "severity", Severity(self.severity))
         except ValueError as exc:
             raise DomainError("gravité invalide") from exc
         # isprintable() refuse les retours à la ligne : pas de fausse ligne dans les journaux.
@@ -125,3 +126,35 @@ class Incident:
         if new_status not in _TRANSITIONS[self.status]:
             raise DomainError("transition interdite")
         self.status = new_status
+
+
+@dataclass(frozen=True, slots=True)
+class Principal:
+    """Qui agit : un utilisateur et des rôles. Les droits se vérifient dans les cas d'usage."""
+
+    user: str
+    roles: frozenset[str]
+
+    def has(self, role: str) -> bool:
+        return role in self.roles
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.user, str) or not _USERNAME_RE.fullmatch(self.user):
+            raise DomainError("nom d'appelant invalide")
+        if not isinstance(self.roles, frozenset) or not all(
+            isinstance(r, str) and _RULE_RE.fullmatch(r) for r in self.roles
+        ):
+            raise DomainError("rôles invalides")
+
+
+@dataclass(frozen=True, slots=True)
+class ThreatIndicator:
+    """Indicateur de menace, dans NOTRE vocabulaire (après traduction du flux externe)."""
+
+    ip: str
+    score: int
+
+    def __post_init__(self) -> None:
+        _check_ip(self.ip)
+        if type(self.score) is not int or not 0 <= self.score <= 100:
+            raise DomainError("score invalide")

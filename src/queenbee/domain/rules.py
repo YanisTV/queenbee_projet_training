@@ -17,6 +17,8 @@ from queenbee.domain.model import (
     Severity,
 )
 
+MAX_RULE_THRESHOLD = 10_000
+
 
 class Rule(Protocol):
     """Contrat commun : tout objet qui sait évaluer des événements est une règle."""
@@ -26,7 +28,7 @@ class Rule(Protocol):
 
 def _check_threshold(threshold: object) -> int:
     # bool est un sous-type de int : True passerait pour 1 sans ce contrôle.
-    if type(threshold) is not int or threshold < 1:
+    if type(threshold) is not int or not 1 <= threshold <= MAX_RULE_THRESHOLD:
         raise DomainError("seuil invalide")
     return threshold
 
